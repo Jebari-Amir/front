@@ -1,40 +1,48 @@
-version: '3'
+version: "3.3"
+
 services:
-  prometheuss:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-
-  grafanaa:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
+  mysqldb:
+    image: mysql:5.7
+    container_name: mysqldbco
+    restart: unless-stopped
+    env_file: ./.env
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
+      MYSQL_ROOT_PASSWORD: '$MYSQLDB_ROOT_PASSWORD'
+      MYSQL_DATABASE: '$MYSQLDB_DATABASE'
+      MYSQL_USER: '$MYSQLDB_USER'
+      MYSQL_PASSWORD: '$MYSQL_PASSWORD'
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - $MYSQLDB_LOCAL_PORT:$MYSQLDB_DOCKER_PORT
+    volumes:
+      - db:/var/lib/mysql
 
-  mysql:
-    image: mysql:latest
-    environment:
-      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
-      - MYSQL_DATABASE=devops
-
-  spring-app:
-    image: amirovvv/spring-app-twin:amirjebari-5twin5-G6V1
+  app:
     depends_on:
-      - mysql
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/devops
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=
+      - mysqldb
+    image: amirovvv/spring-app-twin:amirjebari-5twin5-G6V1
+    restart: on-failure
+    env_file: ./.env
     ports:
-      - "8082:8082"
+      - $SPRING_LOCAL_PORT:$SPRING_DOCKER_PORT
+    environment:
+      SPRING_APPLICATION_JSON: '{
+        "spring.datasource.url"  : "jdbc:mysql://mysqldb:$MYSQLDB_DOCKER_PORT/$MYSQLDB_DATABASE?useSSL=false",
+        "spring.datasource.username" : "$MYSQLDB_USER",
+        "spring.datasource.password" : "$MYSQLDB_ROOT_PASSWORD",
+        "spring.jpa.properties.hibernate.dialect" : "org.hibernate.dialect.MySQL5InnoDBDialect",
+        "spring.jpa.hibernate.ddl-auto" : "update"
+      }'
+    stdin_open: true
+    tty: true
+    user: root
 
   angular-app:
-    image: amirovvv/front-app:amirjebari-5twin5-G6
+    image: amirovvv/spring-app-twin:amirjebari-5twin5-G6
     ports:
       - "4200:80"
     depends_on:
-      - spring-app-twin
+      - mysqldb
+
+volumes:
+  db:
