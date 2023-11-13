@@ -33,8 +33,8 @@ services:
       - "8082:8082"
 
   angular-app:
-    image: amirovvv/front-app:amirjebari-5twin5-G6
+    image: amirovvv/angular-app-twin:amirjebari-5twin5-G6
     ports:
       - "4200:80"
     depends_on:
-      - spring-app-twin
+      - angular-app-twin
